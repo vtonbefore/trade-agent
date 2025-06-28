@@ -1,0 +1,54 @@
+import streamlit as st
+import requests
+import pandas as pd
+
+st.set_page_config(page_title="TradeHub AI Dashboard", layout="centered")
+st.title("📈 TradeHub AI Live Trading Dashboard")
+
+st.markdown("""
+This dashboard connects to your AI engine. Enter live market indicators below or load them from a file.
+It returns model predictions, confidence scores, and trade decisions.
+""")
+
+with st.expander("📥 Upload Market CSV (optional)"):
+    file = st.file_uploader("Upload a CSV with columns: rsi, macd, macd_signal, ema_12, ema_26, bb_upper, bb_lower, volume", type="csv")
+    if file:
+        df = pd.read_csv(file)
+        st.dataframe(df.head())
+
+st.subheader("🔢 Manual Input")
+with st.form("prediction_form"):
+    rsi = st.number_input("RSI", min_value=0.0, max_value=100.0, value=50.0)
+    macd = st.number_input("MACD")
+    macd_signal = st.number_input("MACD Signal")
+    ema_12 = st.number_input("EMA 12")
+    ema_26 = st.number_input("EMA 26")
+    bb_upper = st.number_input("Bollinger Upper")
+    bb_lower = st.number_input("Bollinger Lower")
+    volume = st.number_input("Volume")
+    submitted = st.form_submit_button("🔍 Predict")
+
+if submitted:
+    payload = {
+        "rsi": rsi,
+        "macd": macd,
+        "macd_signal": macd_signal,
+        "ema_12": ema_12,
+        "ema_26": ema_26,
+        "bb_upper": bb_upper,
+        "bb_lower": bb_lower,
+        "volume": volume
+    }
+    with st.spinner("Getting prediction from AI engine..."):
+        try:
+            response = requests.post("http://localhost:8000/predict", json=payload)
+            if response.status_code == 200:
+                data = response.json()
+                st.success("✅ Prediction received")
+                st.metric("Prediction", data['prediction'])
+                st.metric("Confidence", f"{data['confidence'] * 100:.2f}%")
+                st.metric("Trade Decision", data['decision'])
+            else:
+                st.error("❌ Backend error while predicting.")
+        except Exception as e:
+            st.error(f"⚠️ Connection error: {e}")
